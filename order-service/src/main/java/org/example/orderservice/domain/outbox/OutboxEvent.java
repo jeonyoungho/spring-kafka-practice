@@ -4,8 +4,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.io.PrintWriter;
@@ -26,8 +24,7 @@ public class OutboxEvent {
     private static final int MAX_STACK_TRACE_LENGTH = 2000;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
     @Column(name = "user_id", nullable = false)
     private String topic;
@@ -41,6 +38,9 @@ public class OutboxEvent {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "last_modified_at")
+    private LocalDateTime lastModifiedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private Status status;
@@ -51,14 +51,33 @@ public class OutboxEvent {
     @Column(name = "exception_stack_trace", columnDefinition = "TEXT")
     private String exceptionStackTrace;
 
+    public enum Status {
+        WAIT,
+        SUCCESS,
+        FAIL
+    }
+
+    public static OutboxEvent create(String id, String topic, String key, String payload) {
+        OutboxEvent outboxEvent = new OutboxEvent();
+        outboxEvent.id = id;
+        outboxEvent.topic = topic;
+        outboxEvent.key = key;
+        outboxEvent.payload = payload;
+        outboxEvent.createdAt = LocalDateTime.now();
+        outboxEvent.status = Status.WAIT;
+        return outboxEvent;
+    }
+
     public void changeSuccessStatus(LocalDateTime publishedAt) {
         this.status = Status.SUCCESS;
         this.publishedAt = publishedAt;
+        this.lastModifiedAt = LocalDateTime.now();
     }
 
     public void changeFailStatus(Throwable throwable) {
         this.status = Status.FAIL;
         this.exceptionStackTrace = getStackTraceAsString(throwable);
+        this.lastModifiedAt = LocalDateTime.now();
     }
 
     private String getStackTraceAsString(Throwable throwable) {
@@ -72,22 +91,6 @@ public class OutboxEvent {
         }
 
         return buffer.substring(0, MAX_STACK_TRACE_LENGTH - 3) + "...";
-    }
-
-    public enum Status {
-        WAIT,
-        SUCCESS,
-        FAIL
-    }
-
-    public static OutboxEvent create(String topic, String key, String payload) {
-        OutboxEvent outboxEvent = new OutboxEvent();
-        outboxEvent.topic = topic;
-        outboxEvent.key = key;
-        outboxEvent.payload = payload;
-        outboxEvent.createdAt = LocalDateTime.now();
-        outboxEvent.status = Status.WAIT;
-        return outboxEvent;
     }
 
 }

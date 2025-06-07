@@ -1,18 +1,14 @@
 package org.example.orderservice.kafka.producer;
 
-import com.google.common.util.concurrent.ListenableFuture;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.example.orderservice.kafka.exception.KafkaBrokerUnavailableException;
 import org.example.orderservice.kafka.exception.KafkaPublishException;
 import org.example.orderservice.kafka.util.KafkaJsonConverter;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -28,8 +24,26 @@ public class KafkaProducer {
     }
 
     public void send(String topic, String data) {
-        log.info("[Kafka][Producer] Topic: {}, Data: {} ", topic, data);
+        log.debug("[Kafka][Producer] Topic: {}, Data: {} ", topic, data);
         kafkaTemplate.send(topic, data);
+    }
+
+    public void send(String topic, String key, String data) {
+        log.debug("[Kafka][Producer] Topic: {}, Key: {}, Data: {} ", topic, key, data);
+        kafkaTemplate.send(topic, key, data);
+    }
+
+    public void send(String topic, String key, String data, KafkaSuccessCallback successCallback, KafkaFailureCallback failureCallback) {
+        log.debug("[Kafka][Producer] Topic: {}, Key: {}, Data: {}", topic, key, data);
+
+        kafkaTemplate.send(topic, key, data)
+                     .whenComplete((result, ex) -> {
+                         if (ex == null) {
+                             successCallback.onSuccess(result);
+                         } else {
+                             failureCallback.onFailure(ex);
+                         }
+                     });
     }
 
     public void sendSynchronously(String topic, String key, String data, long timeout, TimeUnit unit) {
