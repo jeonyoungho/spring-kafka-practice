@@ -1,5 +1,8 @@
 ### IntelliJ IDEA ###
 .idea
+*.iws
+*.iml
+*.ipr
 
 ### MAC ###
 .DS_Store
